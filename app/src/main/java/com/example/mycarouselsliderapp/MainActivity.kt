@@ -1,10 +1,7 @@
 package com.example.mycarouselsliderapp
 
 import android.os.Bundle
-import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
-import androidx.media3.common.util.Log
-import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.CompositePageTransformer
 import androidx.viewpager2.widget.MarginPageTransformer
@@ -13,7 +10,7 @@ import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var binding: ActivityMainBinding
+    private lateinit var binding: ActivityMainBinding
     private lateinit var adapter: VideoAdapter
     private val videoList = arrayListOf(
         R.raw.video1,
@@ -30,6 +27,7 @@ class MainActivity : AppCompatActivity() {
         setUpTransformer()
     }
 
+
     private fun setUpTransformer() {
         val transformer = CompositePageTransformer()
         transformer.addTransformer(MarginPageTransformer(40))
@@ -42,7 +40,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun init() {
-        adapter = VideoAdapter(videoList, this)
+        adapter = VideoAdapter(videoList, this, binding.viewPager2)
         binding.viewPager2.adapter = adapter
         binding.viewPager2.offscreenPageLimit = 3
         binding.viewPager2.clipToPadding = false
@@ -50,14 +48,9 @@ class MainActivity : AppCompatActivity() {
         binding.viewPager2.getChildAt(0)?.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
     }
 
-    @OptIn(UnstableApi::class)
     override fun onDestroy() {
         super.onDestroy()
+        adapter.releaseAllPlayers()
         binding.viewPager2.adapter = null
-        try {
-            adapter.releaseAllPlayers()
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error releasing players: ${e.message}")
-        }
     }
 }

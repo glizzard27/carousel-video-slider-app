@@ -1,29 +1,24 @@
 package com.example.mycarouselsliderapp
 
 import android.content.Context
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.RawResourceDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.LoadControl
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.example.mycarouselsliderapp.databinding.VideoPlayerItemBinding
 
 class VideoAdapter(
-    private val videoList: ArrayList<Int>,
-    private val context: Context
-) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
+    private val videoList: List<Int>,
+    private val context: Context,
+    private val viewPager2: ViewPager2
 
+) : RecyclerView.Adapter<VideoAdapter.VideoViewHolder>() {
     private var playingViewHolder: VideoViewHolder? = null
     private val activeViewHolders = mutableListOf<VideoViewHolder>()
 
@@ -36,100 +31,63 @@ class VideoAdapter(
         super.onViewDetachedFromWindow(holder)
         activeViewHolders.remove(holder)
         if (playingViewHolder == holder) {
-            playingViewHolder = null
+            playingViewHolder = null // Reset jika ViewHolder yang sedang diputar keluar dari layar
         }
         holder.releasePlayer()
     }
-
     inner class VideoViewHolder(private val binding: VideoPlayerItemBinding) : RecyclerView.ViewHolder(binding.root) {
         private var player: ExoPlayer? = null
-        private var currentPosition = 0L
-        private var isPlaying = false
-
-        init {
-            initializePlayer()
-        }
 
         @OptIn(UnstableApi::class)
-        private fun initializePlayer() {
+        fun bind(videoResId: Int, position: Int, currentItem: Any) { // Tambahkan parameter position
+            val videoUri = RawResourceDataSource.buildRawResourceUri(videoResId)
+            val mediaItem = MediaItem.fromUri(videoUri)
 
-            val loadControl: LoadControl = DefaultLoadControl.Builder()
-                .setTargetBufferBytes(10 * 1024 * 1024) // 10 MB target buffer
-                .setBufferDurationsMs(30000, 60000, 5000, 10000)
-                .build()
-
-            val trackSelector = DefaultTrackSelector(context).apply {
-                setParameters(buildUponParameters().setMaxVideoSizeSd())
-            }
-
-            player = ExoPlayer.Builder(context.applicationContext)
-                .setTrackSelector(trackSelector)
-                .setLoadControl(loadControl)
-                .build().also { exoPlayer ->
+            player = ExoPlayer.Builder(context).build().also { exoPlayer ->
                 binding.exoPlayerView.player = exoPlayer
-                exoPlayer.playWhenReady = false
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
 
+                // Set listener untuk perubahan status pemutaran
                 exoPlayer.addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
-                        Log.d("VideoViewHolder", "Playback state changed: $playbackState")
                         if (playbackState == Player.STATE_READY) {
-                            exoPlayer.seekTo(currentPosition)
-                            exoPlayer.playWhenReady = isPlaying
-                        } else if (playbackState == Player.STATE_ENDED) {
-                            currentPosition = 0L
+                            exoPlayer.playWhenReady = binding.exoPlayerView.isAttachedToWindow && position == currentItem
+                        } else {
+                            exoPlayer.playWhenReady = false
                         }
-                    }
-
-                    override fun onPlayerError(error: PlaybackException) {
-                        Log.e("VideoAdapter", "Player error: ${error.message}")
-                        error.printStackTrace()
                     }
                 })
 
+                // Click listener untuk kontrol manual (jika diperlukan)
                 binding.exoPlayerView.setOnClickListener {
-                    if (isPlaying) {
+                    if (player?.isPlaying == true) {
                         pauseVideo()
+                        playingViewHolder = null
                     } else {
-                        playingViewHolder?.pauseVideo()
                         playVideo()
-                        playingViewHolder = this@VideoViewHolder
                     }
+                    playingViewHolder = this
                 }
             }
         }
 
-        @OptIn(UnstableApi::class)
-        fun bind(videoResId: Int) {
-            val videoUri = RawResourceDataSource.buildRawResourceUri(videoResId)
-            Log.d("VideoAdapter", "Binding video URI: $videoUri")
-
-            // Gunakan DefaultDataSourceFactory untuk memuat video dari res/raw
-            val dataSourceFactory = DefaultDataSource.Factory(context.applicationContext)
-            val mediaItem = MediaItem.fromUri(videoUri)
-            val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-            player?.setMediaSource(mediaSource)
-            player?.prepare()
-        }
 
         fun releasePlayer() {
-            Log.d("VideoViewHolder", "Releasing player")
             player?.release()
             player = null
         }
 
+        @OptIn(UnstableApi::class)
         fun playVideo() {
-            Log.d("VideoViewHolder", "Playing video")
             player?.play()
-            isPlaying = true
-            binding.exoPlayerView.useController = true
+            binding.exoPlayerView.showController()
         }
 
+        @OptIn(UnstableApi::class)
         fun pauseVideo() {
-            Log.d("VideoViewHolder", "Pausing video")
             player?.pause()
-            currentPosition = player?.currentPosition ?: 0L
-            isPlaying = false
-            binding.exoPlayerView.useController = false
+            binding.exoPlayerView.hideController()
         }
     }
 
@@ -139,18 +97,15 @@ class VideoAdapter(
     }
 
     override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
-        holder.bind(videoList[position])
+        holder.bind(videoList[position], position, viewPager2.currentItem)
     }
 
     override fun onViewRecycled(holder: VideoViewHolder) {
         super.onViewRecycled(holder)
-        holder.pauseVideo()
         holder.releasePlayer()
     }
 
-    override fun getItemCount(): Int {
-        return videoList.size
-    }
+    override fun getItemCount(): Int = videoList.size
 
     fun releaseAllPlayers() {
         activeViewHolders.forEach { it.releasePlayer() }
