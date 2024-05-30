@@ -9,10 +9,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.RawResourceDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.LoadControl
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.recyclerview.widget.RecyclerView
 import com.example.mycarouselsliderapp.databinding.VideoPlayerItemBinding
@@ -100,8 +102,12 @@ class VideoAdapter(
         fun bind(videoResId: Int) {
             val videoUri = RawResourceDataSource.buildRawResourceUri(videoResId)
             Log.d("VideoAdapter", "Binding video URI: $videoUri")
+
+            // Gunakan DefaultDataSourceFactory untuk memuat video dari res/raw
+            val dataSourceFactory = DefaultDataSource.Factory(context.applicationContext)
             val mediaItem = MediaItem.fromUri(videoUri)
-            player?.setMediaItem(mediaItem)
+            val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+            player?.setMediaSource(mediaSource)
             player?.prepare()
         }
 
