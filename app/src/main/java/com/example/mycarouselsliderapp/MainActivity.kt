@@ -1,32 +1,36 @@
 package com.example.mycarouselsliderapp
 
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.util.Log
+import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.CompositePageTransformer
 import androidx.viewpager2.widget.MarginPageTransformer
-import androidx.viewpager2.widget.ViewPager2
+import com.example.mycarouselsliderapp.databinding.ActivityMainBinding
 import kotlin.math.abs
-
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var  viewPager2: ViewPager2
-    private lateinit var handler : Handler
-    private lateinit var imageList:ArrayList<Int>
-    private lateinit var adapter: ImageAdapter
+    lateinit var binding: ActivityMainBinding
+    private lateinit var adapter: VideoAdapter
+    private val videoList = arrayListOf(
+        R.raw.video1,
+        R.raw.video2,
+        R.raw.video3
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         init()
         setUpTransformer()
     }
 
-    private fun setUpTransformer(){
+    private fun setUpTransformer() {
         val transformer = CompositePageTransformer()
         transformer.addTransformer(MarginPageTransformer(40))
         transformer.addTransformer { page, position ->
@@ -34,27 +38,26 @@ class MainActivity : AppCompatActivity() {
             page.scaleY = 0.85f + r * 0.14f
         }
 
-        viewPager2.setPageTransformer(transformer)
+        binding.viewPager2.setPageTransformer(transformer)
     }
 
-    private fun init(){
-        viewPager2 = findViewById(R.id.viewPager2)
-        handler = Handler(Looper.getMainLooper())
-        imageList = ArrayList()
+    private fun init() {
+        adapter = VideoAdapter(videoList, this)
+        binding.viewPager2.adapter = adapter
+        binding.viewPager2.offscreenPageLimit = 3
+        binding.viewPager2.clipToPadding = false
+        binding.viewPager2.clipChildren = false
+        binding.viewPager2.getChildAt(0)?.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+    }
 
-        imageList.add(R.drawable.one)
-        imageList.add(R.drawable.two)
-        imageList.add(R.drawable.three)
-        imageList.add(R.drawable.four)
-        imageList.add(R.drawable.five)
-
-        adapter = ImageAdapter(imageList, viewPager2)
-
-        viewPager2.adapter = adapter
-        viewPager2.offscreenPageLimit = 3
-        viewPager2.clipToPadding = false
-        viewPager2.clipChildren = false
-        viewPager2.getChildAt(0).overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-
+    @OptIn(UnstableApi::class)
+    override fun onDestroy() {
+        super.onDestroy()
+        binding.viewPager2.adapter = null
+        try {
+            adapter.releaseAllPlayers()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error releasing players: ${e.message}")
+        }
     }
 }

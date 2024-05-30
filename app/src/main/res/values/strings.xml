@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">My Carousel Slider App</string>
+    <string name="fullscreen">fullscreen</string>
 </resources>
