@@ -22,19 +22,21 @@ class VideoAdapter(
     private var playingViewHolder: VideoViewHolder? = null
     private val activeViewHolders = mutableListOf<VideoViewHolder>()
 
-    override fun onViewAttachedToWindow(holder: VideoViewHolder) {
-        super.onViewAttachedToWindow(holder)
-        activeViewHolders.add(holder)
+    private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            playingViewHolder?.pauseVideo()
+
+            // Cari ViewHolder aktif di posisi yang dipilih
+            val newHolder = activeViewHolders.find { it.bindingAdapterPosition == position }
+            newHolder?.playVideo()
+            playingViewHolder = newHolder
+        }
     }
 
-    override fun onViewDetachedFromWindow(holder: VideoViewHolder) {
-        super.onViewDetachedFromWindow(holder)
-        activeViewHolders.remove(holder)
-        if (playingViewHolder == holder) {
-            playingViewHolder = null // Reset jika ViewHolder yang sedang diputar keluar dari layar
-        }
-        holder.releasePlayer()
+    init {
+        viewPager2.registerOnPageChangeCallback(pageChangeCallback)
     }
+
     inner class VideoViewHolder(private val binding: VideoPlayerItemBinding) : RecyclerView.ViewHolder(binding.root) {
         private var player: ExoPlayer? = null
 
@@ -91,6 +93,16 @@ class VideoAdapter(
         }
     }
 
+    override fun onViewAttachedToWindow(holder: VideoViewHolder) {
+        super.onViewAttachedToWindow(holder)
+        activeViewHolders.add(holder)
+    }
+
+    override fun onViewDetachedFromWindow(holder: VideoViewHolder) {
+        super.onViewDetachedFromWindow(holder)
+        activeViewHolders.remove(holder)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
         val binding = VideoPlayerItemBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return VideoViewHolder(binding)
@@ -106,6 +118,11 @@ class VideoAdapter(
     }
 
     override fun getItemCount(): Int = videoList.size
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        viewPager2.unregisterOnPageChangeCallback(pageChangeCallback) // Unregister di sini
+    }
 
     fun releaseAllPlayers() {
         activeViewHolders.forEach { it.releasePlayer() }
